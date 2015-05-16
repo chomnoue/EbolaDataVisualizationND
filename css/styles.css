@@ -1,0 +1,18 @@
+circle {
+    fill: red;
+    stroke: black;
+    stroke-width: 0.7;
+    opacity: 0.7;
+}
+
+
+
+div.menu ,svg{
+    float: left;
+}
+div.menu{
+    width: 40%
+}
+
+
+
