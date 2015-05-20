@@ -13,7 +13,17 @@ named to let the user focus on them.<br>
 I choosed a logarithmic scale for the radius of the circles so that 
 the values of countries with just few cases can be seen on the map.
 
+####Changes from v1.0
+
+* Added a line chart with an animated red circle to show the 
+total number of cases changing over time
+* Increased the radius of circles
+* Shows only circles that have at least on case at each time
+
 #Feedback 
+* Hey, would be nice if you show the total cases number somewhere changing over time.
+ Also, you could let the circles bigger. I played the animations sometimes, and 
+I am still not sure if I have seen any circle in Mali.
 
 #Resources
 * http://d3js.org/
