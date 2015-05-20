@@ -3,7 +3,10 @@ function draw(geo_data) {
     var margin = 40,
             width = 600 - margin,
             height = 400 - margin;
-
+    var lineChartXAxisPos = height / 3;
+    var lineChartHeight = height / 4;
+    var lineChartWidth = width * 0.8;
+    var lineChartYMargin = 20;
     var monthNames = ["January", "February", "March", "April", "May", "June",
         "July", "August", "September", "October", "November", "December"
     ];
@@ -22,6 +25,8 @@ function draw(geo_data) {
             .append('g')
             .attr('class', 'map');
 
+    var lineChart = d3.select("body")
+            .select("svg").append('g');
 
 
     var projection = d3.geo.mercator()
@@ -33,22 +38,20 @@ function draw(geo_data) {
 
     function drawData(data) {
         //first organise data
-        var countries = d3.set(data.map(function (d) {
-            return d.Country;
-        }));
+        function getCountries(data) {
+            return d3.set(data.map(function (d) {
+                return d.Country;
+            }));
+        }
+        var countries = getCountries(data);
 
-        var selected = {
-            year: null,
-            month: null,
-            day: null,
-            indicator: null
-        };
+
         //retain only the countries existing in the dat set
-        var features = geo_data.features.filter(function (feature) {
+        var countryFeatures = geo_data.features.filter(function (feature) {
             return countries.has(feature.properties.name);
         });
 
-        //grouping by year , month and day
+        //grouping by indicator,year , month and day
         var nested = d3.nest()
                 .key(function (d) {
                     return d.Indicator;
@@ -74,7 +77,7 @@ function draw(geo_data) {
         }).map(data, d3.map);
         var countryCenters = {};
         //finding the center to place the circle and text for each country
-        features.forEach(function (feature) {
+        countryFeatures.forEach(function (feature) {
             var coordinates = feature.geometry.coordinates[0];
             if (feature.geometry.type === 'MultiPolygon') {
                 coordinates = coordinates[0];
@@ -90,28 +93,26 @@ function draw(geo_data) {
             });
             countryCenters[feature.properties.name] = {x: center_x, y: center_y};
         });
-        console.log(countries.values());
+
+        function countryKey(d) {
+            return d.properties.name;
+        }
+
         var map = svg.selectAll('path')
-                .data(geo_data.features)
+                .data(geo_data.features, countryKey)
                 .enter()
                 .append('path')
                 .attr('d', path)
-                .style('fill', function (d) {
-                    if (countries.has(d.properties.name)) {
-                        return 'orange';
-                    } else {
-                        return 'lightBlue';
-                    }
-                })
-                .style('stroke', 'black')
+                .style('fill', 'none')
+                .style('stroke', 'none')
                 .style('stroke-width', 0.5);
 
 
 
-        svg.append('g')
+        var texts = svg.append('g')
                 .attr("class", "text")
                 .selectAll("text")
-                .data(features)
+                .data(countryFeatures, countryKey)
                 .enter()
                 .append("text")
                 .attr('x', function (d) {
@@ -119,11 +120,87 @@ function draw(geo_data) {
                 })
                 .attr('y', function (d) {
                     return countryCenters[d.properties.name].y;
-                })
-                .text(function (d) {
-                    return d.properties.name;
                 });
+        function drawLineChart(indicator) {
+            var selectedData = data.filter(function (d) {
+                return d.Indicator === indicator;
+            });
+            var nestedData = d3.nest()
+                    .key(function (d) {
+                        return format(d.Date);
+                    })
+                    .rollup(function (leaves) {
+                        return d3.sum(leaves, function (d) {
+                            return d.value;
+                        });
+                    }).map(selectedData, d3.map);
+            var dates = selectedData.map(function (d) {
+                return format(d.Date);
+            });
+            var yscale = d3.scale.linear()
+                    .range([lineChartHeight, 0])
+                    .domain([0, d3.max(nestedData.values())]);
+            var xscale = d3.time.scale()
+                    .nice(d3.time.month)
+                    .domain(d3.extent(dates).map(function (date) {
+                        return new Date(date);
+                    }))
+                    .range([0, lineChartWidth]);
+            var xAxis = d3.svg.axis()
+                    .scale(xscale)
+                    .orient("bottom");
+            //.ticks(d3.time.months);
 
+            var yAxis = d3.svg.axis()
+                    .scale(yscale)
+                    .orient("left");
+
+
+            lineChart.selectAll("*").remove();
+            lineChart.append("g")
+                    .attr("class", "x axis")
+                    .attr("transform", "translate(" + lineChartXAxisPos + "," + (lineChartHeight + lineChartYMargin) + ")")
+                    .call(xAxis);
+
+            lineChart.append("g")
+                    .attr("class", "y axis")
+                    .attr("transform", "translate(" + lineChartXAxisPos + "," + lineChartYMargin + ")")
+                    .call(yAxis)
+                    .append("text")
+                    .attr("transform", "rotate(-90)")
+                    .attr("y", 6)
+                    .attr("dy", ".71em")
+                    .style("text-anchor", "end")
+                    .text("Cases");
+            var x = function (d) {
+                return xscale(new Date(d)) + lineChartXAxisPos;
+            };
+            var y = function (d) {
+                return yscale(nestedData.get(d)) + lineChartYMargin;
+            };
+            var line = d3.svg.line()
+                    .x(x)
+                    .y(y)
+                    .interpolate("linear");
+            lineChart.append('path')
+                    .attr('d', line(nestedData.keys()
+                            .sort(d3.ascending)))
+                    //.attr("transform", "translate(" + lineChartXAxisPos + "," + 20 + ")")
+                    .attr("fill", "none")
+                    .style('stroke', 'red')
+                    .style('stroke-width', 0.3);
+
+            var circle = lineChart.append("circle")
+                    .attr("r", 5)
+                    .style("fill", "red")
+                    .style("visible", "hidden");
+            //function used to place the cicle on the line
+            return function (date) {
+                circle.attr("cx", x(date))
+                        .attr("cy", y(date))
+                        .style("visible", "visible");
+            };
+        }
 
 
         function update(selected) {
@@ -133,7 +210,7 @@ function draw(geo_data) {
                     .get(selected.day);
             var radius = d3.scale.log()
                     .domain([1, maxValues.get(selected.indicator)])
-                    .range([0, 15]);
+                    .range([0, 18]);
 
             svg.select(".bubble").remove();
 
@@ -152,8 +229,30 @@ function draw(geo_data) {
                     .attr('r', function (d) {
                         return radius(d.value + 1);//because log(1)=0, this will make values of 0 have a radius of 0 an values 1 a radius of log(2)
                     });
+            var countries = getCountries(selectedData);
+
+            map.style('fill', function (d) {
+                if (countries.has(d.properties.name)) {
+                    return "orange";
+                }
+                return "none";
+            }).style('stroke', function (d) {
+                if (countries.has(d.properties.name)) {
+                    return "black";
+                }
+                return "none";
+            });
+
+            texts.text(function (d) {
+                if (countries.has(d.properties.name)) {
+                    return d.properties.name;
+                }
+                return "";
+            });
+            var date=new Date(selected.year, selected.month, selected.day);
             title.text(selected.indicator + " in West Africa on "
-                    + d3.time.format("%m/%d/%Y")(new Date(selected.year, selected.month, selected.day)));
+                    + d3.time.format("%m/%d/%Y")(date));
+            selected.updateLineChart(format(date));
             return selectedData.length !== 0;
         }
 
@@ -181,21 +280,30 @@ function draw(geo_data) {
         var playButton = menu.append("tr").append("td")
                 .append("input")
                 .attr("type", "submit")
-                .attr("value","Play the animation");
+                .attr("class", "button")
+                .attr("value", "Play the animation");
         function buildOptions(select, data, value) {
+            function getAttrOrSelf(attr) {
+                return function (d) {
+                    if (d[attr]) {
+                        return d[attr];
+                    }
+                    else {
+                        return d;
+                    }
+                };
+            }
+            var getValue = getAttrOrSelf("value");
+            var getTex = getAttrOrSelf("text");
             select.selectAll("option").remove();
             var options = select
                     .selectAll("option")
                     .data(data)
                     .enter()
                     .append("option")
-                    .attr("value", function (d) {
-                        return d.value;
-                    })
-                    .text(function (d) {
-                        return d.text;
-                    }).each(function (d) {
-                if (d.value === value) {
+                    .attr("value", getValue)
+                    .text(getTex).each(function (d) {
+                if (getValue(d) === value) {
                     d3.select(this).attr("selected", "selected");
                 }
             });
@@ -215,19 +323,15 @@ function draw(geo_data) {
         //console.log(indicators.values());
         var indicator = 'Number of confirmed Ebola cases in the last 21 days';//indicators.values()[0];//
 
-        function play(indicator) {
+        function play(indicator) {          
 
             function buildSelectOptions(selected) {
-                buildOptions(selectIndicators, indicators.map(function (indicator) {
-                    return {text: indicator, value: indicator};
-                }), selected.indicator);
+                buildOptions(selectIndicators, indicators, selected.indicator);
                 selectIndicators.on("change", function () {
                     var indicator = indicators[this.selectedIndex];
+                    var updateLineChart = drawLineChart(indicator);
                     var years = nested.get(indicator).keys().sort(sortInts);
-                    buildOptions(selectYears, years.map(function (year) {
-                        return {text: year, value: year};
-                    }), selected.year);
-
+                    buildOptions(selectYears, years, selected.year);
                     selectYears.on("change", function () {
                         var year = years[this.selectedIndex];
                         var months = nested.get(indicator).get(year)
@@ -239,12 +343,12 @@ function draw(geo_data) {
                             var month = months[this.selectedIndex];
                             var days = nested.get(indicator).get(year)
                                     .get(month).keys().sort(sortInts);
-                            buildOptions(selectDays, days.map(function (day) {
-                                return {text: day, value: day};
-                            }), selected.day);
+                            buildOptions(selectDays, days, selected.day);
                             selectDays.on("change", function () {
                                 var day = days[this.selectedIndex];
-                                update({indicator:indicator,year:year,month:month,day:day});
+                                update({indicator: indicator,
+                                    year: year, month: month,
+                                    day: day, updateLineChart: updateLineChart});
                             });
                             triggerChangeEvent(selectDays);
 
@@ -252,14 +356,14 @@ function draw(geo_data) {
                         triggerChangeEvent(selectMonths);
                     });
                     triggerChangeEvent(selectYears);
-                    playButton.on("click",function(){
+                    playButton.on("click", function () {
                         play(indicator);
                     });
                 });
             }
             
-            menu.selectAll("select,input").attr("disabled","disabled");
-
+            menu.selectAll("select,input").attr("disabled", "disabled");
+            var updateLineChart = drawLineChart(indicator);
             //enumerate data to be played by the animation;
             var selectors = d3.merge(
                     nested.get(indicator).keys().sort(sortInts).map(function (year) {
@@ -270,7 +374,8 @@ function draw(geo_data) {
                             year: year,
                             month: month,
                             day: day,
-                            indicator: indicator
+                            indicator: indicator,
+                            updateLineChart:updateLineChart
                         };
                     });
                 })
@@ -289,7 +394,7 @@ function draw(geo_data) {
                     //select the last day  and  
                     buildSelectOptions(sel);
                     triggerChangeEvent(selectIndicators);
-                    menu.selectAll("select,input").attr("disabled",null);
+                    menu.selectAll("select,input").attr("disabled", null);
                 }
             }, 500);
         }
