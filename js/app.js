@@ -37,7 +37,75 @@ function draw(geo_data) {
 
 
     function drawData(data) {
-        //first organise data
+
+        //fix data
+        function getDates(data) {
+            return d3.set(data.map(function (d) {
+                return format(d.Date);
+            })).values().sort(d3.ascending);
+        }
+        var dates = getDates(data);
+        var datesByIndicator = d3.nest()
+                .key(function (d) {
+                    return d.Indicator;
+                }).rollup(function (leaves) {
+            return new Date(d3.max(getDates(leaves)));
+        }).map(data, d3.map);
+
+        var maxDate = new Date(dates[dates.length - 1]);
+        //look for indicators that are not maintained
+        var unMaintainedIndicators = d3.set(datesByIndicator.keys()
+                .filter(function (indicator) {
+                    return maxDate.getFullYear() > datesByIndicator.get(indicator).getFullYear();
+                }));
+
+        data = data.filter(function (d) {
+            return !unMaintainedIndicators.has(d.Indicator);
+        });
+
+        //fix cumulative indicators, registering the previous 
+        //value for dates where the indicator has not been set
+        var byIndicatorAndDate = d3.nest()
+                .key(function (d) {
+                    return d.Indicator;
+                })
+                .key(function(d){
+                    return d.Country;
+                })
+                .key(function (d) {
+                    return format(d.Date);
+                })
+                .map(data, d3.map);
+        var dataToAdd=[];
+        byIndicatorAndDate.keys().filter(function(indicator){
+            return indicator.startsWith("Cumulative");
+        }).forEach(function(indicator){
+            byIndicatorAndDate.get(indicator).keys().forEach(function(country){
+            var byDate=byIndicatorAndDate.get(indicator).get(country);
+            var currentData=null;
+            dates.forEach(function(date){
+                if(byDate.has(date)){
+                    var newData=byDate.get(date)[0];
+                    //a cumulative value must not decrease
+                    if(currentData && newData.value<currentData.value){
+                        newData.value=currentData.value;
+                    }
+                    currentData=newData;
+                }else{
+                    if(currentData){
+                        var newData={};
+                        for(var key in currentData){
+                            newData[key]=currentData[key];
+                        }
+                        newData.Date=format.parse(date);
+                        dataToAdd.push(newData);
+                    }
+                }
+            });
+        });
+        });
+        data=data.concat(dataToAdd);
+        // organise data
         function getCountries(data) {
             return d3.set(data.map(function (d) {
                 return d.Country;
@@ -134,9 +202,6 @@ function draw(geo_data) {
                             return d.value;
                         });
                     }).map(selectedData, d3.map);
-            var dates = selectedData.map(function (d) {
-                return format(d.Date);
-            });
             var yscale = d3.scale.linear()
                     .range([lineChartHeight, 0])
                     .domain([0, d3.max(nestedData.values())]);
@@ -191,9 +256,9 @@ function draw(geo_data) {
                     .style('stroke-width', 0.3);
 
             var circle = lineChart.append("circle")
+                    .style("visible", "hidden")
                     .attr("r", 5)
-                    .style("fill", "red")
-                    .style("visible", "hidden");
+                    .style("fill", "red");
             //function used to place the cicle on the line
             return function (date) {
                 circle.attr("cx", x(date))
@@ -249,7 +314,7 @@ function draw(geo_data) {
                 }
                 return "";
             });
-            var date=new Date(selected.year, selected.month, selected.day);
+            var date = new Date(selected.year, selected.month, selected.day);
             title.text(selected.indicator + " in West Africa on "
                     + d3.time.format("%m/%d/%Y")(date));
             selected.updateLineChart(format(date));
@@ -323,7 +388,7 @@ function draw(geo_data) {
         //console.log(indicators.values());
         var indicator = 'Number of confirmed Ebola cases in the last 21 days';//indicators.values()[0];//
 
-        function play(indicator) {          
+        function play(indicator) {
 
             function buildSelectOptions(selected) {
                 buildOptions(selectIndicators, indicators, selected.indicator);
@@ -361,7 +426,7 @@ function draw(geo_data) {
                     });
                 });
             }
-            
+
             menu.selectAll("select,input").attr("disabled", "disabled");
             var updateLineChart = drawLineChart(indicator);
             //enumerate data to be played by the animation;
@@ -375,7 +440,7 @@ function draw(geo_data) {
                             month: month,
                             day: day,
                             indicator: indicator,
-                            updateLineChart:updateLineChart
+                            updateLineChart: updateLineChart
                         };
                     });
                 })
