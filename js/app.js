@@ -69,42 +69,42 @@ function draw(geo_data) {
                 .key(function (d) {
                     return d.Indicator;
                 })
-                .key(function(d){
+                .key(function (d) {
                     return d.Country;
                 })
                 .key(function (d) {
                     return format(d.Date);
                 })
                 .map(data, d3.map);
-        var dataToAdd=[];
-        byIndicatorAndDate.keys().filter(function(indicator){
+        var dataToAdd = [];
+        byIndicatorAndDate.keys().filter(function (indicator) {
             return indicator.startsWith("Cumulative");
-        }).forEach(function(indicator){
-            byIndicatorAndDate.get(indicator).keys().forEach(function(country){
-            var byDate=byIndicatorAndDate.get(indicator).get(country);
-            var currentData=null;
-            dates.forEach(function(date){
-                if(byDate.has(date)){
-                    var newData=byDate.get(date)[0];
-                    //a cumulative value must not decrease
-                    if(currentData && newData.value<currentData.value){
-                        newData.value=currentData.value;
-                    }
-                    currentData=newData;
-                }else{
-                    if(currentData){
-                        var newData={};
-                        for(var key in currentData){
-                            newData[key]=currentData[key];
+        }).forEach(function (indicator) {
+            byIndicatorAndDate.get(indicator).keys().forEach(function (country) {
+                var byDate = byIndicatorAndDate.get(indicator).get(country);
+                var currentData = null;
+                dates.forEach(function (date) {
+                    if (byDate.has(date)) {
+                        var newData = byDate.get(date)[0];
+                        //a cumulative value must not decrease
+                        if (currentData && newData.value < currentData.value) {
+                            newData.value = currentData.value;
                         }
-                        newData.Date=format.parse(date);
-                        dataToAdd.push(newData);
+                        currentData = newData;
+                    } else {
+                        if (currentData) {
+                            var newData = {};
+                            for (var key in currentData) {
+                                newData[key] = currentData[key];
+                            }
+                            newData.Date = format.parse(date);
+                            dataToAdd.push(newData);
+                        }
                     }
-                }
+                });
             });
         });
-        });
-        data=data.concat(dataToAdd);
+        data = data.concat(dataToAdd);
         // organise data
         function getCountries(data) {
             return d3.set(data.map(function (d) {
@@ -342,11 +342,19 @@ function draw(geo_data) {
         var selectYears = bulidSelect();
         var selectMonths = bulidSelect();
         var selectDays = bulidSelect();
-        var playButton = menu.append("tr").append("td")
+        var buttonsRaw=menu.append("tr").append("td");
+        var playButton = buttonsRaw
                 .append("input")
                 .attr("type", "submit")
                 .attr("class", "button")
                 .attr("value", "Play the animation");
+        
+        var stopButton=buttonsRaw
+                .append("input")
+                .attr("type", "submit")
+                .attr("class", "button")
+                .attr("value", "Stop the animation");
+        
         function buildOptions(select, data, value) {
             function getAttrOrSelf(attr) {
                 return function (d) {
@@ -389,7 +397,6 @@ function draw(geo_data) {
         var indicator = 'Number of confirmed Ebola cases in the last 21 days';//indicators.values()[0];//
 
         function play(indicator) {
-
             function buildSelectOptions(selected) {
                 buildOptions(selectIndicators, indicators, selected.indicator);
                 selectIndicators.on("change", function () {
@@ -420,14 +427,15 @@ function draw(geo_data) {
                         });
                         triggerChangeEvent(selectMonths);
                     });
-                    triggerChangeEvent(selectYears);
+                    triggerChangeEvent(selectYears);                    
+                    playButton.attr('value', 'Play the animation');
                     playButton.on("click", function () {
                         play(indicator);
                     });
                 });
             }
 
-            menu.selectAll("select,input").attr("disabled", "disabled");
+            menu.selectAll("select").attr("disabled", "disabled");
             var updateLineChart = drawLineChart(indicator);
             //enumerate data to be played by the animation;
             var selectors = d3.merge(
@@ -450,18 +458,42 @@ function draw(geo_data) {
                     );
             var idx = 0;
             var sel = null;
-            var dateInterval = setInterval(function () {
-                sel = selectors[idx];
-                update(sel);
-                idx++;
-                if (idx >= selectors.length) {
-                    clearInterval(dateInterval);
-                    //select the last day  and  
-                    buildSelectOptions(sel);
-                    triggerChangeEvent(selectIndicators);
-                    menu.selectAll("select,input").attr("disabled", null);
+
+            function resume() {
+                var dateInterval = setInterval(function () {
+                    sel = selectors[idx];
+                    update(sel);
+                    idx++;
+                    if (idx >= selectors.length) {
+                        stop();
+                    }
+                }, 500);
+
+                function pause() {
+                    if (dateInterval) {
+                        clearInterval(dateInterval);
+                    }
+                    playButton.attr('value', 'Resume the animation');
+                    playButton.on('click', resume);
                 }
-            }, 500);
+                playButton.attr('value', 'Pause the animation');
+                playButton.on('click', pause);
+                function stop() {
+                    if (dateInterval) {
+                        clearInterval(dateInterval);
+                    }
+                    //select the last day  and  
+                    buildSelectOptions(selectors[selectors.length - 1]);
+                    triggerChangeEvent(selectIndicators);
+                    menu.selectAll("select").attr("disabled", null);
+                    stopButton.attr("disabled", "disabled");
+                }
+                stopButton.attr("disabled", null);
+                stopButton.on('click',stop);
+            }
+
+            resume();
+
         }
         play(indicator);
         //update(dates[0], indicator);

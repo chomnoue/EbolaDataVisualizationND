@@ -27,6 +27,10 @@ total number of cases changing over time
 * For cumulative indicators, added an entry for dates where there is
 no value, considering the value of the day before.
 
+####Changes from v1.2
+
+* Added pause, resume, and stop functionality
+
 #Feedback 
 * Hey, would be nice if you show the total cases number somewhere changing over time.
  Also, you could let the circles bigger. I played the animations sometimes, and 
@@ -34,6 +38,7 @@ I am still not sure if I have seen any circle in Mali.
 * This looks really cool. The number of confirmed cases is good and seeing the circles grow/wane with the number of cases in each country is interesting.
 However, when I select a different indicator than the initial default, the date range seems to be much shorter. That makes me a bit confused.
 I'm also not sure why some countries disappear in the cumulative number of confirmed Ebola cases. Those numbers should only go up? Or did I misinterpret that? maybe you are missing some data for Nigeria/Senegal that cause those countries to disappear?
+* Well, initially, I just noticed popping in of countries and spheres getting bigger and smaller. It wasn't until after the animation finished that I read the text and understood the visualization. If it is possible to pause the animation until after pressing a button that might be a possible improvement in usability. My main takeaway after reading the description and looking at the graph is that January 2015 was a relief point for with Ebola cases. I see that things maxed out and then eventually started to decline w/ a small relapse.
 
 #Resources
 * http://d3js.org/
