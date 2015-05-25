@@ -9,7 +9,7 @@ He can also chosse to replay the animation for the choosen indicator.
 I choosed to show the affected country on a map whith the orange colour
 differentiating them for the others. Only the affected countries are
 named to let the user focus on them.<br>
- A red circle is use to show the value of an indicator for each country.
+ A red circle is used to show the value of an indicator for each country.
 I choosed a logarithmic scale for the radius of the circles so that 
 the values of countries with just few cases can be seen on the map.
 

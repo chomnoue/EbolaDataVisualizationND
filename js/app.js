@@ -105,6 +105,8 @@ function draw(geo_data) {
             });
         });
         data = data.concat(dataToAdd);
+        
+        
         // organise data
         function getCountries(data) {
             return d3.set(data.map(function (d) {
@@ -134,6 +136,7 @@ function draw(geo_data) {
                     return d.Date.getDate();
                 })
                 .map(data, d3.map);
+        
         //compute max values for each indicator
         var maxValues = d3.nest()
                 .key(function (d) {
@@ -176,7 +179,7 @@ function draw(geo_data) {
                 .style('stroke-width', 0.5);
 
 
-
+        //placing country names on the map
         var texts = svg.append('g')
                 .attr("class", "text")
                 .selectAll("text")
@@ -342,19 +345,19 @@ function draw(geo_data) {
         var selectYears = bulidSelect();
         var selectMonths = bulidSelect();
         var selectDays = bulidSelect();
-        var buttonsRaw=menu.append("tr").append("td");
+        var buttonsRaw = menu.append("tr").append("td");
         var playButton = buttonsRaw
                 .append("input")
                 .attr("type", "submit")
                 .attr("class", "button")
                 .attr("value", "Play the animation");
-        
-        var stopButton=buttonsRaw
+
+        var stopButton = buttonsRaw
                 .append("input")
                 .attr("type", "submit")
                 .attr("class", "button")
                 .attr("value", "Stop the animation");
-        
+
         function buildOptions(select, data, value) {
             function getAttrOrSelf(attr) {
                 return function (d) {
@@ -427,7 +430,7 @@ function draw(geo_data) {
                         });
                         triggerChangeEvent(selectMonths);
                     });
-                    triggerChangeEvent(selectYears);                    
+                    triggerChangeEvent(selectYears);
                     playButton.attr('value', 'Play the animation');
                     playButton.on("click", function () {
                         play(indicator);
@@ -458,7 +461,7 @@ function draw(geo_data) {
                     );
             var idx = 0;
             var sel = null;
-
+            //start or resume the animation
             function resume() {
                 var dateInterval = setInterval(function () {
                     sel = selectors[idx];
@@ -489,7 +492,7 @@ function draw(geo_data) {
                     stopButton.attr("disabled", "disabled");
                 }
                 stopButton.attr("disabled", null);
-                stopButton.on('click',stop);
+                stopButton.on('click', stop);
             }
 
             resume();
